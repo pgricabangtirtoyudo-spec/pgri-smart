@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D2F68">
+<title>PGRI SMART Tirtoyudo</title>
+<style>
+ html,body{margin:0;height:100%;background:#0D2F68;overflow:hidden}
+ #box{position:fixed;inset:0;overflow:hidden;background:#fff}
+ #app{position:absolute;left:0;width:100%;border:0;background:#fff}
+ #load{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  background:linear-gradient(160deg,#0D2F68,#1a4fa3);color:#fff;font:600 15px/1.4 system-ui,Arial,sans-serif;text-align:center;transition:opacity .35s}
+ #load b{font-size:22px;letter-spacing:.04em}#load b span{color:#ff5a67}
+ #load small{opacity:.8;font-weight:500}
+ .dot{width:34px;height:34px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:s 0.9s linear infinite}
+ @keyframes s{to{transform:rotate(360deg)}}
+ #load a{color:#fff;opacity:.9;margin-top:6px;display:none}
+</style>
+</head>
+<body>
+<div id="box"><iframe id="app" title="PGRI SMART Tirtoyudo" allow="camera; clipboard-write; fullscreen; geolocation; microphone" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
+<div id="load"><div class="dot"></div><div><b>PGRI <span>SMART</span></b><br><small>Cabang Tirtoyudo</small></div><small id="lm">Memuat aplikasi...</small><a id="lk" href="#" rel="noopener">Buka langsung jika tidak tampil</a></div>
+<noscript><p style="position:fixed;inset:0;background:#fff;margin:0;padding:24px;font:16px system-ui">Aktifkan JavaScript untuk membuka PGRI SMART.</p></noscript>
+<script>
+(function(){
+ /* GANTI dengan alamat aplikasi Apps Script (Deploy > Manage deployments > Web app URL, berakhiran /exec) */
+ var APP_URL=https://script.google.com/macros/s/AKfycbz05vMA8xVvSME56rYJrR-pISv7leRCfOS9BDKipZO82CD4Ubd9pWF96pc0t-sosdlgXg/exec;
+ /* Opsional: tinggi (px) bilah peringatan Google yang ingin dipotong. 0 = tidak dipotong. Bisa diuji lewat ?potong=56 */
+ var POTONG=0;
+
+ var q=new URLSearchParams(location.search);
+ if(q.has('potong')){POTONG=Math.max(0,Math.min(120,+q.get('potong')||0));q.delete('potong')}
+ var qs=q.toString();
+ var url=APP_URL+(qs?(APP_URL.indexOf('?')>-1?'&':'?')+qs:'')+(location.hash||'');
+ var f=document.getElementById('app'),ld=document.getElementById('load'),lk=document.getElementById('lk');
+ f.style.top=(-POTONG)+'px';f.style.height='calc(100% + '+POTONG+'px)';
+ lk.href=url;
+ if(APP_URL.indexOf('GANTI_')===0){document.getElementById('lm').textContent='Alamat aplikasi belum diisi di index.html.';return}
+ var done=false;
+ function selesai(){if(done)return;done=true;ld.style.opacity='0';setTimeout(function(){ld.style.display='none'},380)}
+ f.addEventListener('load',selesai);
+ setTimeout(function(){if(!done)lk.style.display='block'},12000);
+ f.src=url;
+})();
+</script>
+</body>
+</html>
