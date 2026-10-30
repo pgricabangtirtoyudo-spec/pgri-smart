@@ -91,7 +91,9 @@ class MainActivity : AppCompatActivity() {
         s.javaScriptCanOpenWindowsAutomatically = true
         s.mediaPlaybackRequiresUserGesture = false
         s.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-        s.userAgentString = s.userAgentString + " PGRISmartApp/1.0"
+        // versi aplikasi ikut dikirim, agar situs tahu kapan perlu menawarkan pembaruan
+        val versi = try { packageManager.getPackageInfo(packageName, 0).versionName ?: "1.0.0" } catch (e: Exception) { "1.0.0" }
+        s.userAgentString = s.userAgentString + " PGRISmartApp/" + versi
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true)
 
