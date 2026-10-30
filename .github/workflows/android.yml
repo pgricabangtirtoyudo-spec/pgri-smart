@@ -1,7 +1,12 @@
 name: Bangun APK
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      versi:
+        description: 'Nomor versi aplikasi, contoh 1.0.0'
+        required: true
+        default: '1.0.0'
   push:
     tags: ['v*']
 
@@ -23,6 +28,17 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      - name: Tentukan nomor versi
+        id: versi
+        run: |
+          if [ -n "${{ github.event.inputs.versi }}" ]; then
+            NAMA="${{ github.event.inputs.versi }}"
+          else
+            NAMA="${GITHUB_REF_NAME#v}"      # tag v1.0.0 -> 1.0.0
+          fi
+          echo "nama=$NAMA" >> "$GITHUB_OUTPUT"
+          echo "Versi yang dibangun: $NAMA (kode ${{ github.run_number }})"
+
       - name: Siapkan kunci tanda tangan
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -40,19 +56,23 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           VERSION_CODE: ${{ github.run_number }}
-          VERSION_NAME: ${{ github.ref_name }}
+          VERSION_NAME: ${{ steps.versi.outputs.nama }}
         run: gradle -p android assembleRelease --no-daemon
 
       - name: Ganti nama APK
-        run: cp android/app/build/outputs/apk/release/app-release.apk PGRI-SMART.apk
+        run: cp android/app/build/outputs/apk/release/app-release.apk PGRI-SMART-${{ steps.versi.outputs.nama }}.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: PGRI-SMART-apk
-          path: PGRI-SMART.apk
+          path: PGRI-SMART-${{ steps.versi.outputs.nama }}.apk
 
       - name: Terbitkan di Releases (hanya saat tag v*)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: PGRI-SMART.apk
+          name: PGRI SMART ${{ steps.versi.outputs.nama }}
+          body: |
+            APK PGRI SMART Tirtoyudo versi ${{ steps.versi.outputs.nama }} (kode versi ${{ github.run_number }}).
+            Pasang di atas aplikasi lama, data tidak hilang.
+          files: PGRI-SMART-${{ steps.versi.outputs.nama }}.apk
