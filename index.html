@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0D2F68">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="apple-mobile-web-app-title" content="PGRI SMART">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta property="og:image" content="https://smart.pgricabangtirtoyudo.or.id/icon-512.png">
+
 <title>PGRI SMART Cabang Tirtoyudo - Portal PGRI Kecamatan Tirtoyudo, Kabupaten Malang</title>
 <meta name="description" content="PGRI SMART Cabang Tirtoyudo: portal resmi PGRI Cabang Tirtoyudo, Kabupaten Malang. Pengumuman, agenda, berita, data anggota, pengurus ranting, aduan, dan kartu anggota digital.">
 <meta name="google-site-verification" content="HUsZXYi6uyXykYKTfF3ryEpXIIVvbahUl4U8k747yAc" />
@@ -25,6 +34,11 @@
  .dot{width:34px;height:34px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:s 0.9s linear infinite}
  @keyframes s{to{transform:rotate(360deg)}}
  #load a{color:#fff;opacity:.9;margin-top:6px;display:none}
+
+ #scn{position:fixed;inset:0;z-index:99;background:rgba(7,20,45,.94);display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;color:#fff;font:600 15px/1.4 system-ui,Arial,sans-serif;text-align:center}
+ #scn.on{display:flex}#scn .vw{position:relative;width:min(88vw,420px);aspect-ratio:1/1;border-radius:16px;overflow:hidden;background:#000}
+ #scn video{width:100%;height:100%;object-fit:cover}#scn .fr{position:absolute;inset:16%;border:3px solid #fff;border-radius:16px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+ #scn button{background:#fff;color:#0D2F68;border:0;border-radius:12px;padding:12px 28px;font:700 15px system-ui;cursor:pointer}
 </style>
 </head>
 <body>
@@ -35,6 +49,7 @@
 </main>
 <div id="box"><iframe id="app" title="PGRI SMART Tirtoyudo" allow="camera; clipboard-write; fullscreen; geolocation; microphone" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
 <div id="load"><div class="dot"></div><div><b>PGRI <span>SMART</span></b><br><small>Cabang Tirtoyudo</small></div><small id="lm">Memuat aplikasi...</small><a id="lk" href="#" rel="noopener">Buka langsung jika tidak tampil</a></div>
+<div id="scn"><div>Arahkan kamera ke kode QR</div><div class="vw"><video id="scv" muted playsinline></video><div class="fr"></div></div><div id="scm" style="min-height:1.3em;font-weight:500;opacity:.85"></div><button id="scx" type="button">Batal</button></div>
 <noscript><p style="position:fixed;inset:0;background:#fff;margin:0;padding:24px;font:16px system-ui">Aktifkan JavaScript untuk membuka PGRI SMART.</p></noscript>
 <script>
 (function(){
@@ -57,6 +72,34 @@
  setTimeout(function(){if(!done)lk.style.display='block'},12000);
  f.src=url;
 })();
+
+/* Pemindai QR untuk aplikasi di dalam bingkai (Apps Script tidak boleh memakai kamera langsung) */
+(function(){
+ var sc=document.getElementById('scn'),vd=document.getElementById('scv'),sm=document.getElementById('scm'),aktif=false,stm=null,src=null,org='';
+ function boleh(o){return /^https:\/\/([a-z0-9-]+\.)*(googleusercontent\.com|google\.com)$/.test(o)}
+ function balik(m){try{if(src)src.postMessage(m,org)}catch(e){}}
+ function tutup(){aktif=false;if(stm){stm.getTracks().forEach(function(t){t.stop()});stm=null}sc.classList.remove('on')}
+ function jsqr(){return new Promise(function(ok,no){if(window.jsQR)return ok();var j=document.createElement('script');j.src='https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js';j.onload=ok;j.onerror=no;document.head.appendChild(j)})}
+ document.getElementById('scx').onclick=function(){tutup();balik({pgri:'scan-cancel'})};
+ window.addEventListener('message',async function(e){
+  var d=e.data;if(!d||d.pgri!=='scan'||!boleh(e.origin))return;
+  src=e.source;org=e.origin;balik({pgri:'scan-ack'});
+  sm.textContent='';sc.classList.add('on');
+  try{stm=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false})}
+  catch(er){sm.textContent='Kamera tidak diizinkan. Izinkan kamera pada pengaturan browser/aplikasi.';return}
+  vd.srcObject=stm;try{await vd.play()}catch(er){}
+  var det=null;try{if('BarcodeDetector' in window)det=new BarcodeDetector({formats:['qr_code']})}catch(er){}
+  if(!det){try{await jsqr()}catch(er){sm.textContent='Pemindai tidak bisa dimuat.';return}}
+  var cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});aktif=true;
+  (function loop(){
+   if(!aktif)return;
+   if(vd.readyState>=2&&vd.videoWidth){
+    var p=det?det.detect(vd).then(function(a){return a&&a[0]?a[0].rawValue:''}).catch(function(){return ''}):
+     Promise.resolve((function(){var w=Math.min(640,vd.videoWidth),h=Math.round(w*vd.videoHeight/vd.videoWidth);cv.width=w;cv.height=h;cx.drawImage(vd,0,0,w,h);var r=window.jsQR(cx.getImageData(0,0,w,h).data,w,h,{inversionAttempts:'dontInvert'});return r?r.data:''})());
+    p.then(function(t){if(!aktif)return;if(t){tutup();balik({pgri:'scan-result',text:t})}else setTimeout(loop,250)})}
+   else setTimeout(loop,250)})()});
+})();
+
 </script>
 </body>
 </html>
