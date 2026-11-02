@@ -38,6 +38,10 @@
  #scn{position:fixed;inset:0;z-index:99;background:rgba(7,20,45,.94);display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;color:#fff;font:600 15px/1.4 system-ui,Arial,sans-serif;text-align:center}
  #scn.on{display:flex}#scn .vw{position:relative;width:min(88vw,420px);aspect-ratio:1/1;border-radius:16px;overflow:hidden;background:#000}
  #scn video{width:100%;height:100%;object-fit:cover}#scn .fr{position:absolute;inset:16%;border:3px solid #fff;border-radius:16px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+ #sfi{position:fixed;inset:0;z-index:99;background:rgba(7,20,45,.94);display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;color:#fff;font:600 15px/1.4 system-ui,Arial,sans-serif;text-align:center}
+ #sfi.on{display:flex}#sfi .vw{position:relative;width:min(82vw,360px);aspect-ratio:3/4;border-radius:18px;overflow:hidden;background:#000}
+ #sfi video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+ #sfi .row{display:flex;gap:10px}#sfi button{background:#fff;color:#0D2F68;border:0;border-radius:12px;padding:12px 26px;font:700 15px system-ui;cursor:pointer}#sfi button.g{background:rgba(255,255,255,.18);color:#fff}
  #scn button{background:#fff;color:#0D2F68;border:0;border-radius:12px;padding:12px 28px;font:700 15px system-ui;cursor:pointer}
 </style>
 </head>
@@ -49,6 +53,7 @@
 </main>
 <div id="box"><iframe id="app" title="PGRI SMART Tirtoyudo" allow="camera; clipboard-write; fullscreen; geolocation; microphone" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
 <div id="load"><div class="dot"></div><div><b>PGRI <span>SMART</span></b><br><small>Cabang Tirtoyudo</small></div><small id="lm">Memuat aplikasi...</small><a id="lk" href="#" rel="noopener">Buka langsung jika tidak tampil</a></div>
+<div id="sfi"><div>Ambil foto selfie</div><div class="vw"><video id="sfv" muted playsinline></video></div><div id="sfm" style="min-height:1.3em;font-weight:500;opacity:.85"></div><div class="row"><button id="sfa" type="button">Ambil Foto</button><button id="sfx" class="g" type="button">Batal</button></div></div>
 <div id="scn"><div>Arahkan kamera ke kode QR</div><div class="vw"><video id="scv" muted playsinline></video><div class="fr"></div></div><div id="scm" style="min-height:1.3em;font-weight:500;opacity:.85"></div><button id="scx" type="button">Batal</button></div>
 <noscript><p style="position:fixed;inset:0;background:#fff;margin:0;padding:24px;font:16px system-ui">Aktifkan JavaScript untuk membuka PGRI SMART.</p></noscript>
 <script>
@@ -100,6 +105,30 @@
    else setTimeout(loop,250)})()});
 })();
 
+
+/* Kamera depan untuk foto selfie absen (dipakai aplikasi di dalam bingkai) */
+(function(){
+ var sf=document.getElementById('sfi'),vd=document.getElementById('sfv'),sm=document.getElementById('sfm'),stm=null,src=null,org='';
+ function boleh(o){return /^https:\/\/([a-z0-9-]+\.)*(googleusercontent\.com|google\.com)$/.test(o)}
+ function balik(m){try{if(src)src.postMessage(m,org)}catch(e){}}
+ function tutup(){if(stm){stm.getTracks().forEach(function(t){t.stop()});stm=null}sf.classList.remove('on')}
+ document.getElementById('sfx').onclick=function(){tutup();balik({pgri:'selfie-cancel'})};
+ document.getElementById('sfa').onclick=function(){
+  if(!vd.videoWidth)return;
+  var s=Math.min(1,480/Math.max(vd.videoWidth,vd.videoHeight)),c=document.createElement('canvas');
+  c.width=Math.max(1,Math.round(vd.videoWidth*s));c.height=Math.max(1,Math.round(vd.videoHeight*s));
+  c.getContext('2d').drawImage(vd,0,0,c.width,c.height);
+  var q=.62,d=c.toDataURL('image/jpeg',q);while(d.length>150000&&q>.3){q-=.1;d=c.toDataURL('image/jpeg',q)}
+  tutup();balik({pgri:'selfie-result',data:d})};
+ window.addEventListener('message',async function(e){
+  var d=e.data;if(!d||d.pgri!=='selfie'||!boleh(e.origin))return;
+  src=e.source;org=e.origin;balik({pgri:'selfie-ack'});
+  sm.textContent='';sf.classList.add('on');
+  try{stm=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'}},audio:false})}
+  catch(er){tutup();balik({pgri:'selfie-error'});return}
+  vd.srcObject=stm;try{await vd.play()}catch(er){}
+  sm.textContent='Hadapkan wajah ke kamera, lalu tekan Ambil Foto.'});
+})();
 </script>
 </body>
 </html>
