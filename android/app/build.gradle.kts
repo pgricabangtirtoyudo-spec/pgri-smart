@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "id.or.pgricabangtirtoyudo.smart"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "id.or.pgricabangtirtoyudo.smart"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 36
         versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
         versionName = System.getenv("VERSION_NAME") ?: "1.0.0"
     }
