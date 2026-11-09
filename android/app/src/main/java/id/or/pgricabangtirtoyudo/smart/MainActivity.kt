@@ -46,8 +46,33 @@ class MainActivity : AppCompatActivity() {
     private var izinMenunggu: PermissionRequest? = null
 
     private val pilihFile = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
-        chooserCb?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(r.resultCode, r.data))
+        chooserCb?.onReceiveValue(hasilPilih(r.resultCode, r.data))
         chooserCb = null
+    }
+
+    /** Ambil semua foto yang dipilih (satu atau banyak), apa pun cara pemilih mengembalikannya. */
+    private fun hasilPilih(kode: Int, data: Intent?): Array<Uri>? {
+        if (kode != RESULT_OK || data == null) return null
+        val daftar = ArrayList<Uri>()
+        val klip = data.clipData
+        if (klip != null) {
+            for (i in 0 until klip.itemCount) klip.getItemAt(i).uri?.let { daftar.add(it) }
+        }
+        if (daftar.isEmpty()) data.data?.let { daftar.add(it) }
+        return if (daftar.isEmpty()) null else daftar.toTypedArray()
+    }
+
+    /** Intent pemilih berkas/galeri yang eksplisit (mendukung pilih banyak foto). */
+    private fun intentGaleri(params: WebChromeClient.FileChooserParams): Intent {
+        val jenis = params.acceptTypes.filter { it.isNotBlank() }
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = if (jenis.size == 1) jenis[0] else "*/*"
+            if (jenis.size > 1) putExtra(Intent.EXTRA_MIME_TYPES, jenis.toTypedArray())
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, params.mode == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        return Intent.createChooser(intent, "Pilih foto")
     }
     private val izinKamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         val p = izinMenunggu
@@ -148,7 +173,7 @@ class MainActivity : AppCompatActivity() {
                 chooserCb?.onReceiveValue(null)
                 chooserCb = filePathCallback
                 return try {
-                    pilihFile.launch(params.createIntent())
+                    pilihFile.launch(if (params.isCaptureEnabled) params.createIntent() else intentGaleri(params))
                     true
                 } catch (e: ActivityNotFoundException) {
                     chooserCb = null
