@@ -7,7 +7,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.webkit.JavascriptInterface
 import android.os.Message
 import android.view.View
 import android.webkit.CookieManager
@@ -27,6 +29,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.google.firebase.messaging.FirebaseMessaging
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 
 class MainActivity : AppCompatActivity() {
 
@@ -82,6 +88,73 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Hasil pemindaian QR: "" = belum ada, "OK:teks" = berhasil, "ERR:pesan" = gagal/dibatalkan. Dibaca situs lewat PgriNative.hasilQr(). */
+    @Volatile private var hasilScan: String = ""
+
+    private val izinNotif = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ambilTokenPush() }
+
+    private fun ambilTokenPush() {
+        try {
+            FirebaseMessaging.getInstance().token.addOnSuccessListener { t ->
+                getSharedPreferences("pgri", MODE_PRIVATE).edit().putString("fcm", t).apply()
+            }
+        } catch (e: Exception) {
+            // Firebase belum terpasang (google-services.json tidak ada): abaikan
+        }
+    }
+
+    /** Dipanggil dari JavaScript situs (nama: PgriNative). Situs berjalan di dalam iframe, jadi hasil diambil lewat polling. */
+    inner class Jembatan {
+        @JavascriptInterface
+        fun scanQr() {
+            hasilScan = ""
+            runOnUiThread {
+                try {
+                    val opsi = GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
+                    GmsBarcodeScanning.getClient(this@MainActivity, opsi).startScan()
+                        .addOnSuccessListener { b -> hasilScan = "OK:" + (b.rawValue ?: "") }
+                        .addOnCanceledListener { hasilScan = "ERR:Pemindaian dibatalkan." }
+                        .addOnFailureListener { hasilScan = "ERR:Pemindai belum siap. Pastikan Google Play Services aktif, lalu coba lagi." }
+                } catch (e: Exception) {
+                    hasilScan = "ERR:Pemindai tidak tersedia di perangkat ini."
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun hasilQr(): String {
+            val h = hasilScan
+            if (h.isNotEmpty()) hasilScan = ""
+            return h
+        }
+
+        @JavascriptInterface
+        fun daftarPush() {
+            runOnUiThread {
+                Notif.buatKanal(this@MainActivity)
+                if (Build.VERSION.SDK_INT >= 33 &&
+                    ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                ) izinNotif.launch(Manifest.permission.POST_NOTIFICATIONS) else ambilTokenPush()
+            }
+        }
+
+        @JavascriptInterface
+        fun tokenPush(): String = getSharedPreferences("pgri", MODE_PRIVATE).getString("fcm", "") ?: ""
+    }
+
+    /** Buka halaman tertentu dari tautan atau dari notifikasi yang diketuk. */
+    private fun bukaDariIntent(i: Intent?) {
+        if (i == null) return
+        val u = i.getStringExtra("url")?.let { Uri.parse(it) } ?: i.data
+        if (u != null && u.scheme == "https" && dalam(u.host)) web.loadUrl(u.toString())
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        bukaDariIntent(intent)
+    }
+
     private fun dalam(host: String?): Boolean {
         if (host == null) return false
         return HOST_DALAM.any { host == it || host.endsWith(".$it") }
@@ -107,6 +180,7 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(b.left, b.top, b.right, b.bottom)
             WindowInsetsCompat.CONSUMED
         }
+        Notif.buatKanal(this)
         web = findViewById(R.id.web)
         bar = findViewById(R.id.bar)
         err = findViewById(R.id.err)
@@ -129,6 +203,7 @@ class MainActivity : AppCompatActivity() {
         // versi aplikasi ikut dikirim, agar situs tahu kapan perlu menawarkan pembaruan
         val versi = try { packageManager.getPackageInfo(packageName, 0).versionName ?: "1.0.0" } catch (e: Exception) { "1.0.0" }
         s.userAgentString = s.userAgentString + " PGRISmartApp/" + versi
+        web.addJavascriptInterface(Jembatan(), "PgriNative")
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true)
 
@@ -224,7 +299,8 @@ class MainActivity : AppCompatActivity() {
         })
 
         if (savedInstanceState == null) {
-            val dari = intent?.data
+            val dariNotif = intent?.getStringExtra("url")?.let { Uri.parse(it) }
+            val dari = dariNotif ?: intent?.data
             val awal = if (dari != null && dalam(dari.host) && dari.scheme == "https") dari.toString() else APP_URL
             web.loadUrl(awal)
         }
