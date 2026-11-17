@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "613817294263",
+    "project_id": "pgri-smart",
+    "storage_bucket": "pgri-smart.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:613817294263:android:1d1395146ae372780e5c32",
+        "android_client_info": {
+          "package_name": "id.or.pgricabangtirtoyudo.smart"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAitv77t3Vk_zYKJIiD8USllLSbfv5j4lo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
