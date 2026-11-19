@@ -23,6 +23,19 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
+      - name: Periksa berkas Firebase (google-services.json)
+        env:
+          GS_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ ! -f android/app/google-services.json ]; then
+            if [ -n "$GS_JSON" ]; then
+              echo "$GS_JSON" > android/app/google-services.json
+            else
+              echo "::error::File android/app/google-services.json belum ada. Unduh dari Firebase (Project settings > Your apps) lalu unggah ke folder android/app di GitHub."
+              exit 1
+            fi
+          fi
+
       - name: Siapkan kunci tanda tangan
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
