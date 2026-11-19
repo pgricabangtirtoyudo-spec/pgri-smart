@@ -54,4 +54,29 @@ object Sesi {
     fun npa(c: Context): String = p(c).getString("npa", "") ?: ""
     fun simpan(c: Context, token: String, npa: String) { p(c).edit().putString("token", token).putString("npa", npa).apply() }
     fun hapusToken(c: Context) { p(c).edit().remove("token").apply() }
+
+    /** "Ingat saya": NPA dan sandi disimpan terenkripsi (Android Keystore) di perangkat ini. */
+    private fun aman(c: Context) = try {
+        val k = androidx.security.crypto.MasterKey.Builder(c).setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM).build()
+        androidx.security.crypto.EncryptedSharedPreferences.create(
+            c, "pgri_ingat", k,
+            androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    } catch (e: Exception) { null }
+    fun ingatNpa(c: Context): String = try { aman(c)?.getString("npa", "") ?: "" } catch (e: Exception) { "" }
+    fun ingatSandi(c: Context): String = try { aman(c)?.getString("sandi", "") ?: "" } catch (e: Exception) { "" }
+    fun simpanIngat(c: Context, npa: String, sandi: String) { try { aman(c)?.edit()?.putString("npa", npa)?.putString("sandi", sandi)?.apply() } catch (_: Exception) {} }
+    fun perbaruiSandiIngat(c: Context, sandi: String) { try { if (ingatSandi(c).isNotEmpty()) aman(c)?.edit()?.putString("sandi", sandi)?.apply() } catch (_: Exception) {} }
+    /** Saat keluar: sandi dihapus, NPA tetap terisi di layar masuk. */
+    fun lupakanSandi(c: Context) { try { aman(c)?.edit()?.remove("sandi")?.apply() } catch (_: Exception) {} }
+}
+
+
+/** Salinan data terakhir agar aplikasi tetap bisa dibuka tanpa sinyal. */
+object Cache {
+    private fun p(c: Context) = c.getSharedPreferences("pgri_cache", Context.MODE_PRIVATE)
+    fun simpan(c: Context, kunci: String, isi: String) { p(c).edit().putString(kunci, isi).apply() }
+    fun baca(c: Context, kunci: String): String = p(c).getString(kunci, "") ?: ""
+    fun obj(c: Context, kunci: String): JSONObject? = try { baca(c, kunci).takeIf { it.isNotEmpty() }?.let { JSONObject(it) } } catch (e: Exception) { null }
 }

@@ -13,8 +13,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -24,20 +28,39 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import java.io.ByteArrayOutputStream
 
+/** Pengaturan tampilan: "sistem" (ikut HP), "terang", atau "gelap". */
+object Pal {
+    var mode by mutableStateOf("sistem")
+    var sistemGelap by mutableStateOf(false)
+    val gelap: Boolean get() = mode == "gelap" || (mode == "sistem" && sistemGelap)
+}
+
 val Navy = Color(0xFF0D2F68)
 val NavyTerang = Color(0xFF1A4FA3)
 val Merah = Color(0xFFD3202F)
 val Hijau = Color(0xFF1B9A4F)
 val HijauGelap = Color(0xFF0F7A3D)
-val Latar = Color(0xFFF2F5FA)
-val Garis = Color(0xFFE1E7F2)
-val Abu = Color(0xFF6B7690)
+val Latar: Color get() = if (Pal.gelap) Color(0xFF0D1320) else Color(0xFFF2F5FA)
+val Kartu: Color get() = if (Pal.gelap) Color(0xFF18202F) else Color.White
+val Teks: Color get() = if (Pal.gelap) Color(0xFFD7E3FF) else Navy
+val Abu: Color get() = if (Pal.gelap) Color(0xFF9BA7C2) else Color(0xFF6B7690)
+val Garis: Color get() = if (Pal.gelap) Color(0xFF2A3550) else Color(0xFFE1E7F2)
+val TintAbu: Color get() = if (Pal.gelap) Color(0xFF263149) else Color(0xFFE3E8F3)
+val TintLatar: Color get() = if (Pal.gelap) Color(0xFF111A2B) else Color(0xFFF2F5FA)
+val TintHijau: Color get() = if (Pal.gelap) Color(0xFF123524) else Color(0xFFE6F6EC)
+val TintMerah: Color get() = if (Pal.gelap) Color(0xFF3A1A1F) else Color(0xFFFFEDEE)
+val TintBiru: Color get() = if (Pal.gelap) Color(0xFF1B2A47) else Color(0xFFE3ECFB)
+val TintKuning: Color get() = if (Pal.gelap) Color(0xFF3A3017) else Color(0xFFFFF7E0)
+val TeksKuning: Color get() = if (Pal.gelap) Color(0xFFF2D58A) else Color(0xFF6B4E00)
 val BULAN = listOf("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des")
 
 @Composable
 fun TemaPgri(isi: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = lightColorScheme(
+        colorScheme = if (Pal.gelap) darkColorScheme(
+            primary = Color(0xFF9DB8F0), onPrimary = Color(0xFF0A1B3D), secondary = Color(0xFFFF8A94), background = Latar, surface = Kartu,
+            surfaceVariant = Color(0xFF263149), onSurface = Color(0xFFE3EAFB), onSurfaceVariant = Color(0xFFB4BED6), onBackground = Color(0xFFE3EAFB)
+        ) else lightColorScheme(
             primary = Navy, onPrimary = Color.White, secondary = Merah, background = Latar, surface = Color.White,
             surfaceVariant = Color(0xFFE9EEF8), primaryContainer = Color(0xFFDCE6FA), onPrimaryContainer = Navy
         )

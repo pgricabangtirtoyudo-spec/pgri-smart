@@ -23,23 +23,27 @@ import org.json.JSONObject
 val KATEGORI_ADUAN = listOf("Keanggotaan", "Kesejahteraan", "Advokasi / Perlindungan Hukum", "Administrasi", "Saran & Masukan", "Lainnya")
 
 fun warnaStatus(s: String): Pair<Color, Color> = when (s) {
-    "Diproses" -> Color(0xFF8A5A00) to Color(0xFFFFF1D6)
-    "Selesai" -> HijauGelap to Color(0xFFE6F6EC)
-    "Ditolak" -> Merah to Color(0xFFFFEDEE)
-    else -> Navy to Color(0xFFE3ECFB)
+    "Diproses" -> TeksKuning to TintKuning
+    "Selesai" -> HijauGelap to TintHijau
+    "Ditolak" -> Merah to TintMerah
+    else -> Teks to TintBiru
 }
 
 @Composable
-fun TabAduan(b: JSONObject, token: String, segarkan: () -> Unit) {
+fun TabAduan(b: JSONObject, token: String, wa: String, profil: JSONObject, segarkan: () -> Unit) {
+    val c = androidx.compose.ui.platform.LocalContext.current
     val daftar = b.optJSONArray("aduan").daftar()
     var form by remember { mutableStateOf(false) }
     var terbuka by remember { mutableStateOf<String?>(null) }
     var info by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Layanan Aduan", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Navy)
+        Text("Layanan Aduan", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Teks)
         Text("Sampaikan aduan, saran, atau pertanyaan kepada pengurus cabang. Hanya Anda dan pengurus yang dapat melihatnya.", fontSize = 13.sp, color = Abu)
         Button({ form = true }, Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = Merah)) {
             Icon(Icons.Filled.Add, null); Spacer(Modifier.width(8.dp)); Text("Buat Aduan Baru", fontWeight = FontWeight.Bold)
+        }
+        if (wa.isNotEmpty()) OutlinedButton({ bukaTautan(c, waLink(wa, profil)) }, Modifier.fillMaxWidth().height(46.dp), shape = RoundedCornerShape(14.dp)) {
+            Icon(Icons.Filled.Chat, null, tint = Hijau); Spacer(Modifier.width(8.dp)); Text("Tanya cepat lewat WhatsApp pengurus")
         }
         if (info.isNotEmpty()) Text(info, color = Hijau, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         if (daftar.isEmpty()) {
@@ -51,29 +55,29 @@ fun TabAduan(b: JSONObject, token: String, segarkan: () -> Unit) {
         daftar.forEach { a ->
             val kode = a.optString("kode"); val buka = terbuka == kode
             val (fg, bg) = warnaStatus(a.optString("status"))
-            Card(Modifier.fillMaxWidth().clickable { terbuka = if (buka) null else kode }, shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(2.dp)) {
+            Card(Modifier.fillMaxWidth().clickable { terbuka = if (buka) null else kode }, shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Kartu), elevation = CardDefaults.cardElevation(2.dp)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Column(Modifier.weight(1f)) {
-                            Text(a.optString("judul").ifEmpty { a.optString("kategori") }, fontWeight = FontWeight.Bold, color = Navy)
+                            Text(a.optString("judul").ifEmpty { a.optString("kategori") }, fontWeight = FontWeight.Bold, color = Teks)
                             Text(a.optString("kategori") + " • " + a.optString("tanggal"), fontSize = 11.sp, color = Abu)
                         }
                         Text(a.optString("status"), color = fg, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.background(bg, RoundedCornerShape(50)).padding(horizontal = 10.dp, vertical = 4.dp))
                     }
                     if (buka) {
-                        Text("Aduan Anda", fontSize = 11.sp, color = Navy, fontWeight = FontWeight.Bold)
-                        Text(a.optString("isi"), fontSize = 13.sp, modifier = Modifier.fillMaxWidth().background(Color(0xFFF2F5FA), RoundedCornerShape(10.dp)).padding(10.dp))
+                        Text("Aduan Anda", fontSize = 11.sp, color = Teks, fontWeight = FontWeight.Bold)
+                        Text(a.optString("isi"), fontSize = 13.sp, modifier = Modifier.fillMaxWidth().background(TintLatar, RoundedCornerShape(10.dp)).padding(10.dp))
                         val tg = a.optString("tanggapan")
                         if (tg.isNotEmpty()) {
                             Text("Tanggapan pengurus", fontSize = 11.sp, color = HijauGelap, fontWeight = FontWeight.Bold)
-                            Text(tg, fontSize = 13.sp, modifier = Modifier.fillMaxWidth().background(Color(0xFFE6F6EC), RoundedCornerShape(10.dp)).padding(10.dp))
+                            Text(tg, fontSize = 13.sp, modifier = Modifier.fillMaxWidth().background(TintHijau, RoundedCornerShape(10.dp)).padding(10.dp))
                         } else Text("Belum ada tanggapan dari pengurus.", fontSize = 12.sp, color = Abu)
                         val rw = a.optJSONArray("riwayat").daftar()
                         rw.forEach { x ->
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Box(Modifier.padding(top = 5.dp).size(8.dp).background(Navy, CircleShape))
                                 Column {
-                                    Text(x.optString("s"), fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = Navy)
+                                    Text(x.optString("s"), fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = Teks)
                                     Text(x.optString("w").take(16).replace('T', ' ') + (x.optString("o").takeIf { it.isNotEmpty() }?.let { " • $it" } ?: ""), fontSize = 10.5.sp, color = Abu)
                                     if (x.optString("p").isNotEmpty()) Text(x.optString("p"), fontSize = 12.sp)
                                 }

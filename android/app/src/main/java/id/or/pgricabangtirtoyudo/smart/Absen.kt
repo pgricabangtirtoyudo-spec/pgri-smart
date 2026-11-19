@@ -104,11 +104,11 @@ fun TabAbsen(token: String, selesai: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("Absen Kegiatan", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Navy)
+        Text("Absen Kegiatan", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Teks)
         Text("Kehadiran dicatat atas nama akun Anda, tanpa mengetik NPA.", fontSize = 13.sp, color = Abu)
 
         if (hasil != null) {
-            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFE6F6EC)), modifier = Modifier.fillMaxWidth()) {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = TintHijau), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(24.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Filled.CheckCircle, null, tint = Hijau, modifier = Modifier.size(64.dp))
                     Text(hasil!!, textAlign = TextAlign.Center, fontWeight = FontWeight.Bold, color = HijauGelap, fontSize = 16.sp)
@@ -123,11 +123,11 @@ fun TabAbsen(token: String, selesai: () -> Unit) {
             TombolBesar("Absen Tanpa QR", "Pilih kegiatan hari ini, nama terisi otomatis", Icons.Filled.Edit, Brush.linearGradient(listOf(HijauGelap, Color(0xFF1FA557)))) { muatDaftar() }
             if (memuat) LinearProgressIndicator(Modifier.fillMaxWidth(), color = Hijau)
             daftar?.let { d ->
-                Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(2.dp)) {
+                Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Kartu), elevation = CardDefaults.cardElevation(2.dp)) {
                     Column(Modifier.padding(14.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Absen dicatat atas nama ${namaAkun.ifEmpty { "akun Anda" }}.", fontSize = 12.sp, color = Abu)
-                        if (d.isEmpty()) Text("Tidak ada kegiatan dengan absensi terbuka hari ini. Bila sedang mengikuti kegiatan, minta panitia membuka absensi atau gunakan Pindai QR.", fontSize = 13.sp, color = Color(0xFF6B4E00),
-                            modifier = Modifier.background(Color(0xFFFFF7E0), RoundedCornerShape(10.dp)).padding(10.dp))
+                        if (d.isEmpty()) Text("Tidak ada kegiatan dengan absensi terbuka hari ini. Bila sedang mengikuti kegiatan, minta panitia membuka absensi atau gunakan Pindai QR.", fontSize = 13.sp, color = TeksKuning,
+                            modifier = Modifier.background(TintKuning, RoundedCornerShape(10.dp)).padding(10.dp))
                         d.forEach { k ->
                             val sudah = k.optBoolean("sudah")
                             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).border(1.dp, Garis, RoundedCornerShape(12.dp)).clickable(enabled = !sudah) {
@@ -135,7 +135,7 @@ fun TabAbsen(token: String, selesai: () -> Unit) {
                             }.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Icon(if (sudah) Icons.Filled.CheckCircle else Icons.Filled.EventAvailable, null, tint = if (sudah) Hijau else Navy)
                                 Column(Modifier.weight(1f)) {
-                                    Text(k.optString("judul"), fontWeight = FontWeight.SemiBold, color = if (sudah) Abu else Navy)
+                                    Text(k.optString("judul"), fontWeight = FontWeight.SemiBold, color = if (sudah) Abu else Teks)
                                     Text(if (sudah) "Sudah tercatat" else k.optString("lokasi").ifEmpty { "Absensi dibuka" }, fontSize = 12.sp, color = Abu)
                                 }
                             }
@@ -144,10 +144,10 @@ fun TabAbsen(token: String, selesai: () -> Unit) {
                 }
             }
         } else {
-            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(3.dp), modifier = Modifier.fillMaxWidth()) {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Kartu), elevation = CardDefaults.cardElevation(3.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(if (judul.isNotEmpty()) judul else "Kode kegiatan terbaca", fontWeight = FontWeight.Bold, color = Navy, fontSize = 16.sp, textAlign = TextAlign.Center)
-                    Box(Modifier.size(170.dp).clip(CircleShape).background(Color(0xFFE9EEF8)).border(3.dp, Navy, CircleShape), contentAlignment = Alignment.Center) {
+                    Text(if (judul.isNotEmpty()) judul else "Kode kegiatan terbaca", fontWeight = FontWeight.Bold, color = Teks, fontSize = 16.sp, textAlign = TextAlign.Center)
+                    Box(Modifier.size(170.dp).clip(CircleShape).background(TintAbu).border(3.dp, Navy, CircleShape), contentAlignment = Alignment.Center) {
                         val s = selfie
                         if (s != null) Image(s.asImageBitmap(), "Selfie", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                         else Icon(Icons.Filled.PhotoCamera, null, tint = Abu, modifier = Modifier.size(56.dp))
@@ -163,7 +163,7 @@ fun TabAbsen(token: String, selesai: () -> Unit) {
                 }
             }
         }
-        if (status.isNotEmpty()) Text(status, color = if (galat) Merah else Navy, fontSize = 13.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        if (status.isNotEmpty()) Text(status, color = if (galat) Merah else Teks, fontSize = 13.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
     }
 }
 
