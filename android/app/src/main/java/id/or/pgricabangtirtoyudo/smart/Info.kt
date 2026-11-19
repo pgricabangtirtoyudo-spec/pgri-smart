@@ -14,6 +14,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,7 +43,7 @@ fun fotoBn(u: String, lebar: Int = 1200): String {
 }
 
 @Composable
-fun TabInfo(info: JSONObject?) {
+fun TabInfo(info: JSONObject?, token: String = "") {
     if (info == null) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Informasi belum termuat.", color = Color.Gray) }; return }
     val bagian = listOf("Statistik", "Berita", "Pengumuman", "Agenda", "Dokumen", "Galeri", "Pengurus", "Kontak")
     var pilih by remember { mutableIntStateOf(0) }
@@ -55,7 +57,7 @@ fun TabInfo(info: JSONObject?) {
             2 -> Pengumuman(info.optJSONArray("pengumuman"))
             3 -> Agenda(info.optJSONArray("agenda"))
             4 -> Dokumen(info.optJSONArray("dokumen"))
-            5 -> Galeri(info.optJSONArray("galeri"))
+            5 -> GaleriLayar(info.optJSONArray("galeri"))
             6 -> Pengurus(info.optJSONArray("pengurus"))
             else -> Kontak(info.optJSONObject("situs") ?: JSONObject())
         }
@@ -208,30 +210,44 @@ fun Pengurus(a: JSONArray?) {
     }
 }
 
+fun namaAkun(u: String): String {
+    if (!u.startsWith("http")) return u
+    val p = u.substringBefore("?").trimEnd('/').substringAfterLast('/')
+    return if (p.isEmpty()) u else if (p.startsWith("@")) p else "@$p"
+}
+
 @Composable
 fun Kontak(s: JSONObject) {
     val c = LocalContext.current
-    @Composable fun baris(ikon: String, judul: String, nilai: String, url: String) {
+    @Composable fun baris(ikon: androidx.compose.ui.graphics.vector.ImageVector, judul: String, nilai: String, url: String, warna: Color = Navy) {
         if (nilai.isEmpty()) return
-        Card(Modifier.fillMaxWidth().clickable(enabled = url.isNotEmpty()) { bukaTautan(c, url) }, colors = CardDefaults.cardColors(containerColor = Color.White)) {
-            Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(ikon, fontSize = 20.sp)
-                Column { Text(judul, fontSize = 11.sp, color = Color.Gray); Text(nilai, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Navy) }
+        Card(Modifier.fillMaxWidth().clickable(enabled = url.isNotEmpty()) { bukaTautan(c, url) }, shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(1.dp)) {
+            Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(42.dp).background(warna.copy(alpha = 0.1f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                    Icon(ikon, null, tint = warna)
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(judul, fontSize = 11.sp, color = Abu)
+                    Text(nilai, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Navy)
+                }
+                if (url.isNotEmpty()) Icon(Icons.Filled.ChevronRight, null, tint = Abu)
             }
         }
     }
     val wa = s.optString("wa")
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        baris("📍", "Alamat", s.optString("alamat"), if (s.optString("peta").startsWith("https://")) s.optString("peta") else "")
-        baris("🕒", "Jam layanan", s.optString("jam"), "")
-        baris("📞", "Telepon", s.optString("telp"), if (s.optString("telp").isNotEmpty()) "tel:" + s.optString("telp").replace(" ", "") else "")
-        baris("💬", "WhatsApp", wa, if (wa.isNotEmpty()) "https://wa.me/$wa" else "")
-        baris("✉️", "Email", s.optString("email"), if (s.optString("email").isNotEmpty()) "mailto:" + s.optString("email") else "")
-        baris("📷", "Instagram", s.optString("ig"), s.optString("ig"))
-        baris("▶️", "YouTube", s.optString("yt"), s.optString("yt"))
-        baris("🎵", "TikTok", s.optString("tt"), s.optString("tt"))
-        if (s.length() == 0 || listOf("alamat","telp","wa","email","ig","yt","tt").all { s.optString(it).isEmpty() })
-            Text("Kontak belum diisi oleh admin.", color = Color.Gray)
+        baris(Icons.Filled.LocationOn, "Alamat", s.optString("alamat"), if (s.optString("peta").startsWith("https://")) s.optString("peta") else "", Merah)
+        baris(Icons.Filled.Schedule, "Jam layanan", s.optString("jam"), "")
+        baris(Icons.Filled.Phone, "Telepon", s.optString("telp"), if (s.optString("telp").isNotEmpty()) "tel:" + s.optString("telp").replace(" ", "") else "")
+        baris(Icons.Filled.Chat, "WhatsApp", wa, if (wa.isNotEmpty()) "https://wa.me/$wa" else "", Hijau)
+        baris(Icons.Filled.Email, "Email", s.optString("email"), if (s.optString("email").isNotEmpty()) "mailto:" + s.optString("email") else "")
+        baris(Icons.Filled.PhotoCamera, "Instagram", namaAkun(s.optString("ig")), s.optString("ig"), Color(0xFFC13584))
+        baris(Icons.Filled.PlayCircle, "YouTube", namaAkun(s.optString("yt")), s.optString("yt"), Merah)
+        baris(Icons.Filled.MusicNote, "TikTok", namaAkun(s.optString("tt")), s.optString("tt"), Color(0xFF111111))
+        if (listOf("alamat", "telp", "wa", "email", "ig", "yt", "tt").all { s.optString(it).isEmpty() })
+            Text("Kontak belum diisi oleh admin.", color = Abu)
+        Spacer(Modifier.height(8.dp))
     }
 }
 
@@ -272,5 +288,31 @@ fun Galeri(a: JSONArray?) {
     besar?.let { u ->
         AlertDialog(onDismissRequest = { besar = null }, confirmButton = { TextButton({ besar = null }) { Text("Tutup") } },
             text = { AsyncImage(u, null, Modifier.fillMaxWidth(), contentScale = ContentScale.Fit) })
+    }
+}
+
+/** Memakai data galeri dari infoPublikApp; bila server lama belum memuatnya, panggil getGaleri langsung. */
+@Composable
+fun GaleriLayar(awal: JSONArray?) {
+    var data by remember { mutableStateOf(awal) }
+    var galat by remember { mutableStateOf("") }
+    var muat by remember { mutableStateOf(awal == null) }
+    LaunchedEffect(Unit) {
+        if (awal == null) {
+            try {
+                val r = Api.panggil("getGaleri") as? JSONArray
+                val h = JSONArray()
+                r.daftar().forEach { g ->
+                    h.put(JSONObject().put("album", g.optString("ALBUM")).put("tanggal", g.optString("TANGGAL")).put("ket", g.optString("KETERANGAN")).put("foto", g.optString("FOTO_URL")))
+                }
+                data = h
+            } catch (e: Exception) { galat = e.message ?: "Gagal memuat galeri." }
+            muat = false
+        }
+    }
+    when {
+        muat -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Navy) }
+        galat.isNotEmpty() -> Text(galat, Modifier.padding(16.dp), color = Merah)
+        else -> Galeri(data)
     }
 }
