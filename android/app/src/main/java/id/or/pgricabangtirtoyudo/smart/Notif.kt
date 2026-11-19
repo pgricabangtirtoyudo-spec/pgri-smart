@@ -32,7 +32,7 @@ object Notif {
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(c, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return
-        val i = Intent(c, MainActivity::class.java).apply {
+        val i = Intent(c, NativeActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             if (url.isNotEmpty()) putExtra("url", url)
         }
