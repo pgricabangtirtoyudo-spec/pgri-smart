@@ -67,7 +67,6 @@ fun PanelAdmin(info: JSONObject, bukaWeb: (String) -> Unit, keluar: () -> Unit) 
     val role = info.optString("role")
     val bolehBukti = hak?.optBoolean("buktiIuran") == true
     val bolehAduan = hak?.optBoolean("aduan") == true
-    val bolehRingkasan = hak?.optBoolean("ringkasan") == true
     val bolehTanggapi = hak?.optBoolean("aduanTanggapi") == true
     val bolehHadir = hak?.optBoolean("kehadiranRanting") == true
     val ranting = hak?.optString("ranting").orEmpty()
@@ -90,7 +89,6 @@ fun PanelAdmin(info: JSONObject, bukaWeb: (String) -> Unit, keluar: () -> Unit) 
             if (bolehBukti) add("bukti" to "Bukti Iuran")
             if (bolehAduan) add("aduan" to "Aduan")
             if (bolehHadir) add("hadir" to "Kehadiran")
-            if (bolehRingkasan) { add("aktif" to "Aktivitas"); add("perangkat" to "Perangkat") }
         }
         Row(Modifier.fillMaxWidth().background(Kartu).hScroll().padding(horizontal = 10.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             tabs.forEach { (k, n) ->
@@ -104,8 +102,6 @@ fun PanelAdmin(info: JSONObject, bukaWeb: (String) -> Unit, keluar: () -> Unit) 
                 "bukti" -> AdminBukti(token, ::salahSesi, { muatRingkas() })
                 "aduan" -> AdminAduan(token, bolehTanggapi, ::salahSesi, { muatRingkas() })
                 "hadir" -> AdminHadir(token, ::salahSesi)
-                "aktif" -> AdminAktivitas(token, ::salahSesi)
-                "perangkat" -> AdminPerangkat(token, ::salahSesi)
                 else -> AdminRingkasan(ringkas, role, ranting, info.optJSONArray("menu"), muat, galat, { muatRingkas() }, { tab = it }, bukaWeb)
             }
         }
@@ -134,7 +130,6 @@ private fun AdminRingkasan(r: JSONObject?, role: String, ranting: String, menu: 
         if (r != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 KotakAngka(if (role == "ranting") "Anggota ranting" else "Total anggota", r.optInt("anggota").toString(), Navy, Modifier.weight(1f))
-                if (r.has("terpasang")) KotakAngka("Aplikasi terpasang", r.optInt("terpasang").toString(), HijauGelap, Modifier.weight(1f), { ke("perangkat") })
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (r.has("buktiMenunggu")) KotakAngka("Bukti iuran menunggu", r.optInt("buktiMenunggu").toString(), TeksKuning, Modifier.weight(1f), { ke("bukti") })
@@ -309,76 +304,6 @@ private fun AdminAduan(token: String, bolehTanggapi: Boolean, sesiHabis: (String
                 }) { Text(if (proses) "Menyimpan…" else "Simpan") }
             },
             dismissButton = { TextButton(onClick = { pilih = null }, enabled = !proses) { Text("Batal") } })
-    }
-}
-
-@Composable
-private fun AdminAktivitas(token: String, sesiHabis: (String) -> Boolean) {
-    val scope = rememberCoroutineScope()
-    var d by remember { mutableStateOf<JSONObject?>(null) }
-    var muat by remember { mutableStateOf(true) }
-    var galat by remember { mutableStateOf("") }
-    fun muatUlang() {
-        muat = true; galat = ""
-        scope.launch {
-            try { d = Api.panggil("adminAktivitas", token).obj() }
-            catch (e: Exception) { val m = e.message ?: "Gagal."; if (!sesiHabis(m)) galat = m }
-            muat = false
-        }
-    }
-    LaunchedEffect(Unit) { muatUlang() }
-    Memuat(muat, galat, d == null, "Belum ada data.", { muatUlang() }) {
-        val x = d ?: return@Memuat
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Kehadiran ${x.optInt("tahun")} · ${x.optInt("kegiatan")} kegiatan", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = Teks)
-            Text("Per ranting", fontWeight = FontWeight.Bold, color = Teks)
-            x.optJSONArray("perRanting").daftar().forEach { r ->
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Kartu).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(r.optString("ranting"), color = Teks, fontWeight = FontWeight.Bold)
-                        Text("${r.optInt("anggota")} anggota · ${r.optInt("hadir")} kehadiran", color = Abu, fontSize = 12.sp)
-                    }
-                    Text("${r.optInt("persen")}%", color = Navy, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
-                }
-            }
-            Text("Anggota teraktif", fontWeight = FontWeight.Bold, color = Teks, modifier = Modifier.padding(top = 6.dp))
-            x.optJSONArray("teraktif").daftar().forEachIndexed { i, r ->
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Kartu).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("${i + 1}.", color = Abu, modifier = Modifier.width(26.dp))
-                    Column(Modifier.weight(1f)) { Text(r.optString("nama"), color = Teks, fontWeight = FontWeight.Bold); Text(r.optString("ranting"), color = Abu, fontSize = 12.sp) }
-                    Text("${r.optInt("hadir")}x", color = HijauGelap, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AdminPerangkat(token: String, sesiHabis: (String) -> Boolean) {
-    val scope = rememberCoroutineScope()
-    var d by remember { mutableStateOf<JSONObject?>(null) }
-    var muat by remember { mutableStateOf(true) }
-    var galat by remember { mutableStateOf("") }
-    fun muatUlang() {
-        muat = true; galat = ""
-        scope.launch {
-            try { d = Api.panggil("adminPerangkat", token).obj() }
-            catch (e: Exception) { val m = e.message ?: "Gagal."; if (!sesiHabis(m)) galat = m }
-            muat = false
-        }
-    }
-    LaunchedEffect(Unit) { muatUlang() }
-    Memuat(muat, galat, d == null, "Belum ada data.", { muatUlang() }) {
-        val x = d ?: return@Memuat
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("${x.optInt("terpasang")} dari ${x.optInt("anggota")} anggota sudah memasang aplikasi (${x.optInt("perangkat")} perangkat).", color = Teks, fontWeight = FontWeight.Bold)
-            x.optJSONArray("daftar").daftar().forEach { r ->
-                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Kartu).padding(12.dp)) {
-                    Text(r.optString("nama"), color = Teks, fontWeight = FontWeight.Bold)
-                    Text("NPA ${r.optString("npa")} · ${r.optString("ranting")} · ${r.optInt("n")} perangkat", color = Abu, fontSize = 12.sp)
-                }
-            }
-        }
     }
 }
 
