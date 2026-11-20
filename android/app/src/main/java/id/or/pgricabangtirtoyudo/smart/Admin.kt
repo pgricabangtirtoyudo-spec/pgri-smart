@@ -102,7 +102,7 @@ fun PanelAdmin(info: JSONObject, bukaWeb: (String) -> Unit, keluar: () -> Unit) 
                 "bukti" -> AdminBukti(token, ::salahSesi, { muatRingkas() })
                 "aduan" -> AdminAduan(token, bolehTanggapi, ::salahSesi, { muatRingkas() })
                 "hadir" -> AdminHadir(token, ::salahSesi)
-                else -> AdminRingkasan(ringkas, role, ranting, info.optJSONArray("menu"), muat, galat, { muatRingkas() }, { tab = it }, { u -> bukaWeb(u + "#tk=" + token) })
+                else -> AdminRingkasan(ringkas, role, ranting, info.optJSONArray("menu"), muat, galat, { muatRingkas() }, { tab = it }, { u -> bukaWeb(u + "?tk=" + token) })
             }
         }
     }

@@ -48,7 +48,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var bar: ProgressBar
     private lateinit var err: View
     private var gagal = false
-    private var tokenSso: String = ""
     private var chooserCb: ValueCallback<Array<Uri>>? = null
     private var izinMenunggu: PermissionRequest? = null
 
@@ -228,10 +227,6 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView, url: String?) {
                 bar.visibility = View.GONE
                 if (!gagal) err.visibility = View.GONE
-                if (tokenSso.isNotEmpty()) {   // masuk otomatis dari panel admin aplikasi: titipkan sesi lalu muat ulang sekali
-                    val tk = tokenSso; tokenSso = ""
-                    view.evaluateJavascript("try{sessionStorage.setItem('tk','$tk')}catch(e){};location.reload()", null)
-                }
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
@@ -306,9 +301,7 @@ class MainActivity : AppCompatActivity() {
         if (savedInstanceState == null) {
             val dariNotif = intent?.getStringExtra("url")?.let { Uri.parse(it) }
             val dari = dariNotif ?: intent?.data
-            val frag = dari?.fragment.orEmpty()
-            if (frag.startsWith("tk=") && Regex("[A-Za-z0-9_-]{8,80}").matches(frag.removePrefix("tk="))) tokenSso = frag.removePrefix("tk=")
-            val awal = if (dari != null && dalam(dari.host) && dari.scheme == "https") dari.buildUpon().fragment(null).build().toString() else APP_URL
+            val awal = if (dari != null && dalam(dari.host) && dari.scheme == "https") dari.toString() else APP_URL
             web.loadUrl(awal)
         }
     }
