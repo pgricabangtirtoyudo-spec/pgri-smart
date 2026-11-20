@@ -25,6 +25,10 @@ import org.json.JSONObject
 
 private const val URL_WEB_ADMIN = "https://smart.pgricabangtirtoyudo.or.id/"
 
+private val LABEL_MENU = mapOf("dash" to "Dashboard", "keuangan" to "Kas & Keuangan", "iuran" to "Iuran", "pesan" to "Pesan", "anggota" to "Data Anggota", "lembaga" to "Lembaga",
+    "pengumuman" to "Pengumuman", "berita" to "Berita", "agenda" to "Agenda", "galeri" to "Galeri", "absen" to "Absensi", "aduan" to "Aduan", "surat" to "Surat",
+    "dokumen" to "Dokumen", "notulen" to "Notulen", "agp" to "AGP", "rka" to "RKA", "pengurus" to "Pengurus")
+
 private val NAMA_BULAN = listOf("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des")
 
 /** Panel admin native: Ringkasan, Bukti Iuran, Aduan, Aktivitas, Perangkat. Hak akses ditentukan server. */
@@ -64,6 +68,9 @@ fun PanelAdmin(info: JSONObject, bukaWeb: (String) -> Unit, keluar: () -> Unit) 
     val bolehBukti = hak?.optBoolean("buktiIuran") == true
     val bolehAduan = hak?.optBoolean("aduan") == true
     val bolehRingkasan = hak?.optBoolean("ringkasan") == true
+    val bolehTanggapi = hak?.optBoolean("aduanTanggapi") == true
+    val bolehHadir = hak?.optBoolean("kehadiranRanting") == true
+    val ranting = hak?.optString("ranting").orEmpty()
 
     Column(Modifier.fillMaxSize().background(Latar)) {
         Surface(color = Navy) {
@@ -72,24 +79,17 @@ fun PanelAdmin(info: JSONObject, bukaWeb: (String) -> Unit, keluar: () -> Unit) 
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text("Panel Admin", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp)
-                    Text(info.optString("nama").ifBlank { "Admin" } + if (info.optString("peran").isNotBlank()) " · " + info.optString("peran") else "",
+                    Text(info.optString("nama").ifBlank { "Admin" } + (if (role == "ranting") " · Ranting " + ranting.ifBlank { info.optString("ranting") } else if (info.optString("peran").isNotBlank()) " · " + info.optString("peran") else if (role == "super") " · Admin Cabang" else ""),
                         color = Color(0xFFCBD5E8), fontSize = 12.sp, maxLines = 1)
                 }
                 TextButton(onClick = { keluarAman() }) { Icon(Icons.Filled.Logout, null, tint = Color.White); Spacer(Modifier.width(4.dp)); Text("Keluar", color = Color.White) }
             }
         }
-        if (role == "ranting") {
-            Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Admin Ranting", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Teks)
-                Text("Pengelolaan data ranting tersedia di panel web. Buka panel web lalu masuk dengan akun yang sama.", color = Abu, fontSize = 14.sp)
-                Button(onClick = { bukaWeb(URL_WEB_ADMIN) }, colors = ButtonDefaults.buttonColors(containerColor = Navy), shape = RoundedCornerShape(12.dp)) { Text("Buka panel web") }
-            }
-            return@Column
-        }
         val tabs = buildList {
             add("ringkas" to "Ringkasan")
             if (bolehBukti) add("bukti" to "Bukti Iuran")
             if (bolehAduan) add("aduan" to "Aduan")
+            if (bolehHadir) add("hadir" to "Kehadiran")
             if (bolehRingkasan) { add("aktif" to "Aktivitas"); add("perangkat" to "Perangkat") }
         }
         Row(Modifier.fillMaxWidth().background(Kartu).hScroll().padding(horizontal = 10.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -102,10 +102,11 @@ fun PanelAdmin(info: JSONObject, bukaWeb: (String) -> Unit, keluar: () -> Unit) 
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when (tab) {
                 "bukti" -> AdminBukti(token, ::salahSesi, { muatRingkas() })
-                "aduan" -> AdminAduan(token, ::salahSesi, { muatRingkas() })
+                "aduan" -> AdminAduan(token, bolehTanggapi, ::salahSesi, { muatRingkas() })
+                "hadir" -> AdminHadir(token, ::salahSesi)
                 "aktif" -> AdminAktivitas(token, ::salahSesi)
                 "perangkat" -> AdminPerangkat(token, ::salahSesi)
-                else -> AdminRingkasan(ringkas, muat, galat, { muatRingkas() }, { tab = it }, bukaWeb)
+                else -> AdminRingkasan(ringkas, role, ranting, info.optJSONArray("menu"), muat, galat, { muatRingkas() }, { tab = it }, bukaWeb)
             }
         }
     }
@@ -123,7 +124,7 @@ private fun KotakAngka(judul: String, nilai: String, warna: Color, modifier: Mod
 }
 
 @Composable
-private fun AdminRingkasan(r: JSONObject?, muat: Boolean, galat: String, ulang: () -> Unit, ke: (String) -> Unit, bukaWeb: (String) -> Unit) {
+private fun AdminRingkasan(r: JSONObject?, role: String, ranting: String, menu: org.json.JSONArray?, muat: Boolean, galat: String, ulang: () -> Unit, ke: (String) -> Unit, bukaWeb: (String) -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (muat && r == null) { Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Navy) } }
         if (galat.isNotEmpty()) {
@@ -132,7 +133,7 @@ private fun AdminRingkasan(r: JSONObject?, muat: Boolean, galat: String, ulang: 
         }
         if (r != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                KotakAngka("Total anggota", r.optInt("anggota").toString(), Navy, Modifier.weight(1f))
+                KotakAngka(if (role == "ranting") "Anggota ranting" else "Total anggota", r.optInt("anggota").toString(), Navy, Modifier.weight(1f))
                 if (r.has("terpasang")) KotakAngka("Aplikasi terpasang", r.optInt("terpasang").toString(), HijauGelap, Modifier.weight(1f), { ke("perangkat") })
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -140,10 +141,15 @@ private fun AdminRingkasan(r: JSONObject?, muat: Boolean, galat: String, ulang: 
                 if (r.has("aduanBaru")) KotakAngka("Aduan baru", r.optInt("aduanBaru").toString(), Merah, Modifier.weight(1f), { ke("aduan") })
             }
         }
+        val web = (0 until (menu?.length() ?: 0)).mapNotNull { LABEL_MENU[menu!!.optString(it)] }
+        if (web.isNotEmpty()) Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Kartu).padding(14.dp)) {
+            Text("Menu peran Anda di panel web", fontWeight = FontWeight.Bold, color = Teks, fontSize = 14.sp)
+            Text(web.joinToString(" · "), color = Abu, fontSize = 13.sp)
+        }
         OutlinedButton(onClick = { bukaWeb(URL_WEB_ADMIN) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
             Icon(Icons.Filled.OpenInBrowser, null); Spacer(Modifier.width(8.dp)); Text("Buka panel web lengkap")
         }
-        Text("Fitur lanjutan (edit anggota, surat, keuangan, dll.) tetap ada di panel web.", color = Abu, fontSize = 12.sp)
+        Text("Fitur lanjutan sesuai peran Anda tersedia di panel web.", color = Abu, fontSize = 12.sp)
     }
 }
 
@@ -240,7 +246,7 @@ private fun AdminBukti(token: String, sesiHabis: (String) -> Boolean, berubah: (
 }
 
 @Composable
-private fun AdminAduan(token: String, sesiHabis: (String) -> Boolean, berubah: () -> Unit) {
+private fun AdminAduan(token: String, bolehTanggapi: Boolean, sesiHabis: (String) -> Boolean, berubah: () -> Unit) {
     val scope = rememberCoroutineScope()
     var daftar by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
     var muat by remember { mutableStateOf(true) }
@@ -282,15 +288,17 @@ private fun AdminAduan(token: String, sesiHabis: (String) -> Boolean, berubah: (
                     Text("${a.optString("nama")} (NPA ${a.optString("npa")}) · ${a.optString("kategori")}", color = Abu, fontSize = 12.sp)
                     Text(a.optString("isi"), color = Teks, fontSize = 14.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hScroll()) {
-                        listOf("Baru", "Diproses", "Selesai", "Ditolak").forEach { s ->
+                        if (bolehTanggapi) listOf("Baru", "Diproses", "Selesai", "Ditolak").forEach { s ->
                             FilterChip(selected = status == s, onClick = { status = s }, label = { Text(s) })
                         }
                     }
-                    OutlinedTextField(tanggapan, { tanggapan = it }, label = { Text("Tanggapan untuk anggota") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+                    if (bolehTanggapi) OutlinedTextField(tanggapan, { tanggapan = it }, label = { Text("Tanggapan untuk anggota") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+                    else Text(if (tanggapan.isBlank()) "Peran Anda hanya dapat melihat aduan." else "Tanggapan: $tanggapan", color = Abu, fontSize = 13.sp)
                     if (pesan.isNotEmpty()) Text(pesan, color = Merah, fontSize = 12.sp)
                 }
             },
             confirmButton = {
+                if (!bolehTanggapi) TextButton(onClick = { pilih = null }) { Text("Tutup") } else
                 Button(enabled = !proses, colors = ButtonDefaults.buttonColors(containerColor = Navy), onClick = {
                     proses = true; pesan = ""
                     scope.launch {
@@ -371,5 +379,57 @@ private fun AdminPerangkat(token: String, sesiHabis: (String) -> Boolean) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AdminHadir(token: String, sesiHabis: (String) -> Boolean) {
+    val scope = rememberCoroutineScope()
+    var d by remember { mutableStateOf<JSONObject?>(null) }
+    var muat by remember { mutableStateOf(true) }
+    var galat by remember { mutableStateOf("") }
+    var pilih by remember { mutableStateOf<JSONObject?>(null) }
+    var rinci by remember { mutableStateOf<JSONObject?>(null) }
+    fun muatUlang() {
+        muat = true; galat = ""
+        scope.launch {
+            try { d = Api.panggil("adminKegiatan", token).obj() }
+            catch (e: Exception) { val m = e.message ?: "Gagal."; if (!sesiHabis(m)) galat = m }
+            muat = false
+        }
+    }
+    LaunchedEffect(Unit) { muatUlang() }
+    LaunchedEffect(pilih) {
+        rinci = null
+        val k = pilih ?: return@LaunchedEffect
+        try { rinci = Api.panggil("adminAbsensi", token, k.optString("id")).obj() } catch (e: Exception) { sesiHabis(e.message ?: "") }
+    }
+    val daftar = d?.optJSONArray("list").daftar()
+    Memuat(muat, galat, daftar.isEmpty(), "Belum ada kegiatan.", { muatUlang() }) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Anggota ranting: ${d?.optInt("total") ?: 0}", color = Abu, fontSize = 13.sp)
+            daftar.forEach { k ->
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Kartu).clickable { pilih = k }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(k.optString("judul"), fontWeight = FontWeight.Bold, color = Teks)
+                        Text("${k.optString("tanggal")} · ${k.optString("lokasi")}", color = Abu, fontSize = 12.sp)
+                    }
+                    Text("${k.optInt("n")} hadir", color = HijauGelap, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            }
+        }
+    }
+    pilih?.let { k ->
+        AlertDialog(onDismissRequest = { pilih = null }, containerColor = Kartu, title = { Text(k.optString("judul"), color = Teks) },
+            text = {
+                val r = rinci
+                if (r == null) CircularProgressIndicator(color = Navy) else Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val h = r.optJSONArray("hadir").daftar(); val b = r.optJSONArray("belum").daftar()
+                    Text("Hadir (${h.size})", fontWeight = FontWeight.Bold, color = HijauGelap)
+                    h.forEach { Text("• " + it.optString("nama"), color = Teks, fontSize = 13.sp) }
+                    Text("Belum hadir (${b.size})", fontWeight = FontWeight.Bold, color = Merah, modifier = Modifier.padding(top = 8.dp))
+                    b.forEach { Text("• " + it.optString("nama"), color = Teks, fontSize = 13.sp) }
+                }
+            }, confirmButton = { TextButton(onClick = { pilih = null }) { Text("Tutup") } })
     }
 }
