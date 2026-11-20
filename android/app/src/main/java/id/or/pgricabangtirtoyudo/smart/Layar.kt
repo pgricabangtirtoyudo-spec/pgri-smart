@@ -46,8 +46,11 @@ fun Aplikasi(bukaWeb: (String) -> Unit, tujuan: String = "", tujuanSelesai: () -
     val c = LocalContext.current
     var token by remember { mutableStateOf(Sesi.token(c)) }
     var profil by remember { mutableStateOf<JSONObject?>(null) }
-    if (token.isEmpty()) {
-        LayarMasuk { t, p, npa, sandi, ingat ->
+    var admin by remember { mutableStateOf(Sesi.admin(c)) }
+    if (admin != null) {
+        PanelAdmin(admin!!, bukaWeb) { Sesi.hapusAdmin(c); admin = null }
+    } else if (token.isEmpty()) {
+        LayarMasuk({ a -> Sesi.simpanAdmin(c, a); admin = a }) { t, p, npa, sandi, ingat ->
             Sesi.simpan(c, t, p.optString("npa"))
             if (ingat) Sesi.simpanIngat(c, npa, sandi) else { Sesi.simpanIngat(c, "", ""); }
             profil = p; token = t
@@ -59,18 +62,31 @@ fun Aplikasi(bukaWeb: (String) -> Unit, tujuan: String = "", tujuanSelesai: () -
 
 // ───────────────────────── MASUK ─────────────────────────
 @Composable
-fun LayarMasuk(sukses: (String, JSONObject, String, String, Boolean) -> Unit) {
+fun LayarMasuk(suksesAdmin: (JSONObject) -> Unit, sukses: (String, JSONObject, String, String, Boolean) -> Unit) {
     val c = LocalContext.current
     val scope = rememberCoroutineScope()
     var npa by remember { mutableStateOf(Sesi.ingatNpa(c)) }
     var sandi by remember { mutableStateOf("") }
     var ingat by remember { mutableStateOf(true) }
+    var modeAdmin by remember { mutableStateOf(false) }
+    var userAdm by remember { mutableStateOf(Sesi.adminUser(c)) }
     var lihat by remember { mutableStateOf(false) }
     var muat by remember { mutableStateOf(false) }
     var galat by remember { mutableStateOf("") }
     fun masuk() {
-        if (muat || npa.isBlank() || sandi.isEmpty()) return
+        if (muat || sandi.isEmpty() || (if (modeAdmin) userAdm.isBlank() else npa.isBlank())) return
         galat = ""; muat = true
+        if (modeAdmin) {
+            scope.launch {
+                try {
+                    val r = Api.panggil("loginAdmin", userAdm.trim(), sandi).obj()
+                    if (!r.optBoolean("ok")) galat = r.optString("message", "Username atau sandi salah.")
+                    else { Sesi.simpanAdminUser(c, userAdm.trim()); suksesAdmin(r) }
+                } catch (e: Exception) { galat = e.message ?: "Gagal masuk." }
+                muat = false
+            }
+            return
+        }
         scope.launch {
             try {
                 val r = Api.panggil("loginAnggota", npa.trim(), sandi).obj()
@@ -93,9 +109,19 @@ fun LayarMasuk(sukses: (String, JSONObject, String, String, Boolean) -> Unit) {
             Spacer(Modifier.height(26.dp))
             Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = Kartu), elevation = CardDefaults.cardElevation(10.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("Masuk Anggota", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Teks)
-                    Text("Gunakan NPA dan sandi akun anggota Anda.", fontSize = 13.sp, color = Abu)
-                    OutlinedTextField(npa, { npa = it.filter { ch -> ch.isDigit() } }, label = { Text("NPA") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    Row(Modifier.fillMaxWidth().background(TintAbu, RoundedCornerShape(12.dp)).padding(4.dp)) {
+                        listOf(false to "Anggota", true to "Admin").forEach { (adm, n) ->
+                            Box(Modifier.weight(1f).clip(RoundedCornerShape(9.dp)).background(if (modeAdmin == adm) Navy else Color.Transparent)
+                                .clickable { modeAdmin = adm; galat = "" }.padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
+                                Text(n, color = if (modeAdmin == adm) Color.White else Abu, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            }
+                        }
+                    }
+                    Text(if (modeAdmin) "Masuk Admin" else "Masuk Anggota", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Teks)
+                    Text(if (modeAdmin) "Untuk admin cabang dan pengurus berperan." else "Gunakan NPA dan sandi akun anggota Anda.", fontSize = 13.sp, color = Abu)
+                    if (modeAdmin) OutlinedTextField(userAdm, { userAdm = it }, label = { Text("Username admin") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp), leadingIcon = { Icon(Icons.Filled.AdminPanelSettings, null, tint = Teks) })
+                    else OutlinedTextField(npa, { npa = it.filter { ch -> ch.isDigit() } }, label = { Text("NPA") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp), leadingIcon = { Icon(Icons.Filled.Badge, null, tint = Teks) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                     OutlinedTextField(sandi, { sandi = it }, label = { Text("Sandi") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
@@ -103,7 +129,7 @@ fun LayarMasuk(sukses: (String, JSONObject, String, String, Boolean) -> Unit) {
                         trailingIcon = { IconButton({ lihat = !lihat }) { Icon(if (lihat) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, "Lihat sandi") } },
                         visualTransformation = if (lihat) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
-                    Row(Modifier.fillMaxWidth().clickable { ingat = !ingat }, verticalAlignment = Alignment.CenterVertically) {
+                    if (!modeAdmin) Row(Modifier.fillMaxWidth().clickable { ingat = !ingat }, verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(ingat, { ingat = it }, colors = CheckboxDefaults.colors(checkedColor = Navy))
                         Column {
                             Text("Ingat saya", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Teks)
@@ -117,14 +143,14 @@ fun LayarMasuk(sukses: (String, JSONObject, String, String, Boolean) -> Unit) {
                         }
                     }
                     Button(
-                        onClick = { masuk() }, enabled = !muat && npa.isNotBlank() && sandi.isNotEmpty(),
+                        onClick = { masuk() }, enabled = !muat && sandi.isNotEmpty() && (if (modeAdmin) userAdm.isNotBlank() else npa.isNotBlank()),
                         modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Navy)
                     ) {
                         if (muat) { CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp); Spacer(Modifier.width(10.dp)) }
                         Text(if (muat) "Memeriksa…" else "Masuk", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }
-                    Text("Sandi awal: 123456. Segera ganti setelah masuk.", fontSize = 12.sp, color = Abu, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    Text(if (modeAdmin) "Sandi admin tidak disimpan di HP." else "Sandi awal: 123456. Segera ganti setelah masuk.", fontSize = 12.sp, color = Abu, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 }
             }
             Spacer(Modifier.height(18.dp))

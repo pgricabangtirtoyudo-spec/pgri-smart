@@ -55,6 +55,13 @@ object Sesi {
     fun simpan(c: Context, token: String, npa: String) { p(c).edit().putString("token", token).putString("npa", npa).apply() }
     fun hapusToken(c: Context) { p(c).edit().remove("token").apply() }
 
+    /** Sesi admin: hanya token (bukan sandi) yang disimpan; username boleh diingat. */
+    fun admin(c: Context): JSONObject? = try { p(c).getString("admin", "")?.takeIf { it.isNotEmpty() }?.let { JSONObject(it) } } catch (e: Exception) { null }
+    fun simpanAdmin(c: Context, o: JSONObject) { p(c).edit().putString("admin", o.toString()).apply() }
+    fun hapusAdmin(c: Context) { p(c).edit().remove("admin").apply() }
+    fun adminUser(c: Context): String = p(c).getString("adminUser", "") ?: ""
+    fun simpanAdminUser(c: Context, u: String) { p(c).edit().putString("adminUser", u).apply() }
+
     /** "Ingat saya": NPA dan sandi disimpan terenkripsi (Android Keystore) di perangkat ini. */
     private fun aman(c: Context) = try {
         val k = androidx.security.crypto.MasterKey.Builder(c).setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM).build()
